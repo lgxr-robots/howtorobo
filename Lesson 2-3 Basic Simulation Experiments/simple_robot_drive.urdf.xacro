@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<robot name="simple_robot_drive">
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="simple_robot_drive">
 
 <!-- =============================== BASE PLATE LINK =============================== -->
   
