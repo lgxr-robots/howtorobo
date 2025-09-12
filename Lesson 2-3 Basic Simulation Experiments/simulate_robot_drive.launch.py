@@ -13,19 +13,8 @@ def generate_launch_description():
     urdf_path = os.path.join(pkg_share_path, 'urdf', urdf_file)
     world_file = os.path.join(pkg_share_path, 'worlds', 'obstacle_course_world.world')
 
-    # Load the URDF into a parameter using xacro
-    #robot_description = Command(['xacro', urdf_path])
-
-    # Load the URDF file content directly
-    try:
-        with open(urdf_path, 'r') as urdf_file_handle:
-            robot_description = urdf_file_handle.read()
-    except FileNotFoundError:
-        print(f"ERROR: URDF file not found at {urdf_path}")
-        raise
-    except PermissionError:
-        print(f"ERROR: Permission denied for URDF file at {urdf_path}")
-        raise
+    # Process the xacro file into a URDF
+    robot_description = {'robot_description': Command(['xacro ', urdf_path])}
     
     # Declare a launch argument for use_sim_time
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
@@ -69,8 +58,7 @@ def generate_launch_description():
         executable='robot_state_publisher',
         name='robot_state_publisher',
         output='screen',
-        parameters=[{'robot_description': robot_description,
-                     'use_sim_time': use_sim_time}],
+        parameters=[robot_description, {'use_sim_time': use_sim_time}],
     )
 
     # Controller Spawners
@@ -87,8 +75,19 @@ def generate_launch_description():
         executable='spawner',
         arguments=['diff_drive_controller', '--controller-manager', '/controller_manager'],
         output='screen',
-        remappings=[('/diff_drive_controller/cmd_vel_unstamped', '/cmd_vel')]
+        # remappings=[('/diff_drive_controller/cmd_vel_unstamped', '/cmd_vel')] 
     )
+
+    # Topic relay: Forward /cmd_vel to /diff_drive_controller/cmd_vel_unstamped
+    relay_node = Node(
+    package='topic_tools',
+    executable='relay',
+    name='cmd_vel_relay',
+    output='screen',
+    arguments=['/cmd_vel', '/diff_drive_controller/cmd_vel_unstamped'],
+    parameters=[{'use_sim_time': use_sim_time}]  # Sync with Gazebo sim time
+    )
+
 
     return LaunchDescription([
         # Add the environment variables
@@ -111,4 +110,7 @@ def generate_launch_description():
         # Spawners to load controllers
         joint_state_broadcaster_spawner,
         diff_drive_controller_spawner,
+
+        # Topic_Tools relay for /cmd_vel to /diff_drive_controller/cmd_vel_unstamped
+        relay_node,
     ])
